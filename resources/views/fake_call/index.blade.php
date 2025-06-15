@@ -44,7 +44,6 @@
                             <div class="flex items-center space-x-2 mt-1">
                                 <select id="selectCustomAudio" name="selected_custom_audio" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:border-primary focus:ring-primary rounded-md shadow-sm">
                                     <option value="">{{ __('-- Use AI Generated Voice --') }}</option>
-                                    {{-- Loop ini akan mengisi dropdown dengan rekaman yang sudah ada --}}
                                     @if(isset($userCustomAudios) && $userCustomAudios->count() > 0)
                                         @foreach($userCustomAudios as $audio)
                                             <option value="{{ $audio->audio_url }}" data-id="{{ $audio->id }}">{{ $audio->file_name }}</option>
@@ -66,14 +65,10 @@
                         <form id="uploadCustomAudioForm" enctype="multipart/form-data">
                             <div class="mb-3">
                                 <label for="customAudioFile" class="block text-sm font-semibold text-text-main">{{ __('Choose audio file (MP3, WAV, AAC, OGG - Max 5MB):') }}</label>
-                                {{-- Nama input file disamakan dengan key di FormData untuk konsistensi --}}
                                 <input type="file" name="audio_file" id="customAudioFile" accept=".mp3,.wav,.aac,.ogg"
                                        class="mt-1 block w-full px-3 py-2 text-base border border-gray-300 focus:border-primary focus:ring-1 focus:ring-primary rounded-md shadow-sm text-sm text-gray-500 cursor-pointer
-                                              file:mr-4 file:py-1 file:px-3
-                                              file:rounded-md file:border-0
-                                              file:text-sm file:font-semibold
-                                              file:bg-blue-50 file:text-blue-700
-                                              hover:file:bg-blue-100">
+                                              file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold
+                                              file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                             </div>
                             <button type="submit" id="uploadButton" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium shadow-sm">
                                 {{ __('Upload Recording') }}
@@ -109,23 +104,50 @@
 
     {{-- Modal untuk Countdown Timer --}}
     <div id="fakeCallTimerModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden p-4">
-        {{-- Konten Modal Timer --}}
+        <div class="bg-white p-6 sm:p-8 rounded-lg shadow-xl text-center w-full max-w-sm mx-auto">
+            <p id="fakeCallTimerMessage" class="text-lg text-gray-700 mb-2"></p>
+            <div class="relative w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-4">
+                <div id="fakeCallTimerProgressBar" class="absolute top-0 left-0 h-full bg-primary transition-all duration-1000 ease-linear"></div>
+            </div>
+            <p id="fakeCallTimeRemaining" class="text-sm text-gray-500 mb-6"></p>
+            <button id="cancelScheduledCallButton" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium shadow-sm focus:outline-none">
+                {{ __('Cancel Scheduled Call') }}
+            </button>
+        </div>
     </div>
 
     {{-- Modal untuk Layar Panggilan --}}
     <div id="callScreenModal" class="fixed inset-0 bg-black flex items-center justify-center z-[60] hidden p-0 m-0">
-         {{-- Konten Layar Panggilan --}}
+        <div id="callScreenModalContent" class="bg-black w-full h-full sm:max-w-xs sm:max-h-[700px] sm:rounded-xl shadow-2xl overflow-hidden">
+            {{-- Konten diisi JavaScript --}}
+        </div>
     </div>
 
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
-    // Elemen UI, State, dan Fungsi utilitas (seperti showTimerModal, resetFakeCallUI, etc.)
-    // ... (Semua kode JS Anda sebelumnya yang tidak berhubungan dengan UPLOAD dan DELETE diletakkan di sini) ...
-    // Saya akan fokus pada bagian UPLOAD dan DELETE untuk perbaikan
+    // ===================================================================
+    // 1. ELEMEN UI (DOM)
+    // ===================================================================
+    const voiceGenderSelect = document.getElementById('voiceGender');
+    const callTopicSelect = document.getElementById('callTopic');
+    const callTimerSelect = document.getElementById('callTimer');
+    const startFakeCallButton = document.getElementById('startFakeCallButton');
+    const fakeCallStatusArea = document.getElementById('fakeCallStatusArea');
 
-    // --- Elemen & Logika untuk Audio Kustom ---
+    // Modal Timer
+    const fakeCallTimerModal = document.getElementById('fakeCallTimerModal');
+    const fakeCallTimerMessage = document.getElementById('fakeCallTimerMessage');
+    const fakeCallTimerProgressBar = document.getElementById('fakeCallTimerProgressBar');
+    const fakeCallTimeRemaining = document.getElementById('fakeCallTimeRemaining');
+    const cancelScheduledCallButton = document.getElementById('cancelScheduledCallButton');
+
+    // Modal Layar Panggilan
+    const callScreenModal = document.getElementById('callScreenModal');
+    const callScreenModalContent = document.getElementById('callScreenModalContent');
+
+    // Audio Kustom
     const selectCustomAudio = document.getElementById('selectCustomAudio');
     const deleteSelectedCustomAudioButton = document.getElementById('deleteSelectedCustomAudioButton');
     const uploadCustomAudioForm = document.getElementById('uploadCustomAudioForm');
@@ -133,6 +155,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadButton = document.getElementById('uploadButton');
     const uploadStatus = document.getElementById('uploadStatus');
     const noCustomAudioMessage = document.getElementById('noCustomAudioMessage');
+    
+    // ===================================================================
+    // 2. STATE (VARIABEL PENYIMPAN STATUS)
+    // ===================================================================
+    let currentRingtone = null;
+    let callScheduleTimeoutId = null;
+    let conversationIntervalId = null;
+    let originalStartButtonText = '{{ __("Start Fake Call") }}';
+    let currentConversationAudio = null;
+    let countdownIntervalId = null;
+
+    // ===================================================================
+    // 3. FUNGSI-FUNGSI BANTUAN (HELPER FUNCTIONS)
+    // ===================================================================
 
     function updateCustomAudioControlsState() {
         if (!selectCustomAudio) return;
@@ -142,18 +178,111 @@ document.addEventListener('DOMContentLoaded', function() {
         deleteSelectedCustomAudioButton.classList.toggle('hidden', !hasDeletableSelection);
         deleteSelectedCustomAudioButton.disabled = !hasDeletableSelection;
         
-        const hasAnyCustomOptions = selectCustomAudio.options.length > 1; // lebih dari 1 karena ada opsi default "-- Use AI..."
+        const hasAnyCustomOptions = selectCustomAudio.options.length > 1;
         noCustomAudioMessage.classList.toggle('hidden', hasAnyCustomOptions);
 
         const useAICall = !selectCustomAudio.value; 
-        document.getElementById('voiceGender').disabled = !useAICall;
+        if (voiceGenderSelect) voiceGenderSelect.disabled = !useAICall;
     }
 
+    function showTimerModal(message, durationSeconds) {
+        if (fakeCallTimerModal && fakeCallTimerMessage && fakeCallTimerProgressBar && fakeCallTimeRemaining) {
+            fakeCallTimerMessage.innerText = message;
+            fakeCallTimerProgressBar.style.width = '100%';
+            let timeLeft = durationSeconds;
+            fakeCallTimeRemaining.innerText = `{{ __('Starting in') }} ${timeLeft} {{ __('seconds') }}...`;
+            if (countdownIntervalId) clearInterval(countdownIntervalId);
+            countdownIntervalId = setInterval(() => {
+                timeLeft--;
+                if (timeLeft >= 0) {
+                    fakeCallTimeRemaining.innerText = `{{ __('Starting in') }} ${timeLeft} {{ __('seconds') }}...`;
+                    const percentageLeft = (timeLeft / durationSeconds) * 100;
+                    fakeCallTimerProgressBar.style.width = `${percentageLeft}%`;
+                } else {
+                    clearInterval(countdownIntervalId);
+                    countdownIntervalId = null;
+                }
+            }, 1000);
+            fakeCallTimerProgressBar.style.transitionDuration = `${durationSeconds}s`;
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => { 
+                    fakeCallTimerProgressBar.style.width = '0%';
+                });
+            });
+            fakeCallTimerModal.classList.remove('hidden');
+        }
+    }
+
+    function hideTimerModal() {
+        if (fakeCallTimerModal) fakeCallTimerModal.classList.add('hidden');
+        if (countdownIntervalId) { clearInterval(countdownIntervalId); countdownIntervalId = null; }
+        if (fakeCallTimerProgressBar) { 
+            fakeCallTimerProgressBar.style.transitionDuration = '0s'; 
+            fakeCallTimerProgressBar.style.width = '100%';
+        }
+    }
+
+    function showCallScreenModal(htmlContent) {
+        if (callScreenModal && callScreenModalContent) {
+            callScreenModalContent.innerHTML = htmlContent;
+            callScreenModal.classList.remove('hidden');
+        }
+    }
+    
+    function hideCallScreenModal() {
+        if (callScreenModal) {
+            callScreenModal.classList.add('hidden');
+            if (callScreenModalContent) callScreenModalContent.innerHTML = '';
+        }
+    }
+
+    function resetFakeCallUI(isCancellation = false) {
+        hideTimerModal();
+        hideCallScreenModal();
+
+        if (callScheduleTimeoutId) { clearTimeout(callScheduleTimeoutId); callScheduleTimeoutId = null; }
+        if (conversationIntervalId) { clearInterval(conversationIntervalId); conversationIntervalId = null; }
+        
+        if (currentRingtone) { currentRingtone.pause(); currentRingtone.currentTime = 0; currentRingtone = null; }
+        if (currentConversationAudio) { currentConversationAudio.pause(); currentConversationAudio.currentTime = 0; currentConversationAudio = null; }
+        
+        if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+        
+        if (startFakeCallButton) {
+            startFakeCallButton.disabled = false;
+            startFakeCallButton.innerText = originalStartButtonText;
+        }
+        if (voiceGenderSelect) voiceGenderSelect.disabled = false;
+        if (callTopicSelect) callTopicSelect.disabled = false;
+        if (callTimerSelect) callTimerSelect.disabled = false;
+        if (selectCustomAudio) selectCustomAudio.disabled = false;
+        if (customAudioFile) { customAudioFile.disabled = false; customAudioFile.value = ''; }
+        if (uploadButton) uploadButton.disabled = false;
+        
+        updateCustomAudioControlsState();
+
+        if (isCancellation && fakeCallStatusArea) {
+            fakeCallStatusArea.innerHTML = `<p class="text-sm text-gray-600">{{ __('Fake call cancelled.') }}</p>`;
+            setTimeout(() => { if(fakeCallStatusArea) fakeCallStatusArea.innerHTML = ''; }, 3000);
+        }
+    }
+
+    // ===================================================================
+    // 4. EVENT LISTENERS
+    // ===================================================================
+    
+    updateCustomAudioControlsState();
+    
     if (selectCustomAudio) {
         selectCustomAudio.addEventListener('change', updateCustomAudioControlsState);
     }
+    
+    if (cancelScheduledCallButton) {
+        cancelScheduledCallButton.addEventListener('click', () => resetFakeCallUI(true));
+    }
 
-    // --- LOGIKA UPLOAD AUDIO KUSTOM (AJAX) ---
     if (uploadCustomAudioForm) {
         uploadCustomAudioForm.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -162,68 +291,51 @@ document.addEventListener('DOMContentLoaded', function() {
                 uploadStatus.className = 'text-xs mt-2 text-red-600';
                 return;
             }
-
             const formData = new FormData();
-            // 'audio_file' adalah key yang akan dicek di Controller
             formData.append('audio_file', customAudioFile.files[0]);
-            
-            // Memberi feedback ke user
             uploadStatus.textContent = '{{ __("Uploading...") }}';
             uploadStatus.className = 'text-xs mt-2 text-blue-600';
             uploadButton.disabled = true;
 
-            // Menggunakan fetch untuk mengirim file ke server
             fetch("{{ route('fakecall.uploadCustomAudio') }}", {
                 method: 'POST',
                 headers: {
-                    // Header ini penting untuk Laravel mengenali request dan token keamanan
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'Accept': 'application/json'
                 },
                 body: formData
             })
             .then(response => {
-                // Jika response tidak OK (bukan status 2xx), lempar error beserta body JSON-nya
                 if (!response.ok) return response.json().then(err => { err.statusCode = response.status; throw err; });
-                return response.json(); // Jika OK, proses body sebagai JSON
+                return response.json();
             })
             .then(data => {
-                // Jika server merespons dengan sukses
                 if (data.success && data.audio_url && data.file_name && data.id) {
                     uploadStatus.textContent = data.message || '{{ __("Upload successful!") }}';
                     uploadStatus.className = 'text-xs mt-2 text-green-600';
-                    
-                    // Tambahkan opsi baru ke dropdown, lalu pilih opsi tersebut
                     const newOption = new Option(data.file_name, data.audio_url);
                     newOption.dataset.id = data.id;
                     selectCustomAudio.add(newOption);
                     selectCustomAudio.value = data.audio_url; 
-                    
-                    uploadCustomAudioForm.reset(); // Kosongkan input file
+                    uploadCustomAudioForm.reset();
                     updateCustomAudioControlsState(); 
                 } else {
                     throw new Error(data.message || '{{ __("Upload failed or invalid data received.") }}');
                 }
             })
             .catch(error => { 
-                // Menangani semua jenis error (network, server error, etc)
                 let errMsg = error.message || '{{ __("An unknown error occurred during upload.") }}';
-                // Menangani error validasi dari Laravel
                 if (error.errors && error.errors.audio_file) errMsg = error.errors.audio_file[0];
-                // Menangani error file terlalu besar
                 else if (error.statusCode === 413) errMsg = '{{ __("File is too large. Max 5MB allowed.") }}';
-                
                 uploadStatus.textContent = errMsg;
                 uploadStatus.className = 'text-xs mt-2 text-red-600';
             })
             .finally(() => {
-                // Apapun hasilnya, aktifkan kembali tombol upload
                 uploadButton.disabled = false;
             });
         });
     }
 
-    // --- LOGIKA DELETE AUDIO KUSTOM TERPILIH (AJAX) ---
     if (deleteSelectedCustomAudioButton) {
         deleteSelectedCustomAudioButton.addEventListener('click', function() {
             const selectedOption = selectCustomAudio.options[selectCustomAudio.selectedIndex];
@@ -236,13 +348,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const audioIdToDelete = selectedOption.dataset.id;
-            
-            // Memberi feedback ke user
             deleteSelectedCustomAudioButton.disabled = true; 
             uploadStatus.textContent = '{{ __("Deleting...") }}'; 
             uploadStatus.className = 'text-xs mt-2 text-blue-600';
 
-            // Membuat URL dengan route helper agar lebih aman dan mudah dipelihara
             let deleteUrl = "{{ route('fakecall.deleteCustomAudio', ['id' => ':id']) }}";
             deleteUrl = deleteUrl.replace(':id', audioIdToDelete);
 
@@ -254,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .then(response => {
-                 if (!response.ok) return response.json().then(err => { throw err; });
+                if (!response.ok) return response.json().then(err => { throw err; });
                 return response.json();
             })
             .then(data => {
@@ -272,16 +381,140 @@ document.addEventListener('DOMContentLoaded', function() {
                 uploadStatus.className = 'text-xs mt-2 text-red-600';
             })
             .finally(() => {
-                // Update status UI, termasuk mengaktifkan kembali tombol hapus jika ada item lain yang dipilih
                 updateCustomAudioControlsState(); 
             });
         });
     }
 
-    // Panggil fungsi ini saat halaman dimuat untuk mengatur state awal tombol
-    updateCustomAudioControlsState();
-    
-    // ... Sisa dari kode JavaScript Anda untuk memulai panggilan, dll.
+    if (startFakeCallButton) {
+        startFakeCallButton.addEventListener('click', function() {
+            resetFakeCallUI();
+
+            const selectedGender = voiceGenderSelect.value;
+            const selectedTopicValue = callTopicSelect.value;
+            const selectedTimerValue = parseInt(callTimerSelect.value, 10);
+            const customAudioUrl = selectCustomAudio.value;
+
+            startFakeCallButton.disabled = true;
+            voiceGenderSelect.disabled = true;
+            callTopicSelect.disabled = true;
+            callTimerSelect.disabled = true;
+            selectCustomAudio.disabled = true;
+            deleteSelectedCustomAudioButton.disabled = true;
+            customAudioFile.disabled = true;
+            uploadButton.disabled = true;
+            
+            showTimerModal(`{{ __('Fake call is being scheduled...') }}`, selectedTimerValue);
+            
+            callScheduleTimeoutId = setTimeout(() => {
+                hideTimerModal();
+                let callerName = callTopicSelect.options[callTopicSelect.selectedIndex].text;
+                if (callerName.toLowerCase().includes('boss')) callerName = '{{ __("Big Boss") }}';
+                else if (callerName.toLowerCase().includes('delivery')) callerName = '{{ __("Courier") }}';
+                else if (callerName.toLowerCase().includes('friend')) callerName = '{{ __("Close Friend") }}';
+                else if (callerName.toLowerCase().includes('family')) callerName = '{{ __("Family") }}';
+
+                const incomingCallHTML = `
+                    <div class="bg-black text-white p-6 w-full h-full flex flex-col justify-between items-center font-sans">
+                        <div class="flex-grow flex flex-col justify-center items-center text-center pt-10">
+                            <div class="w-24 h-24 bg-gray-700 rounded-full mx-auto flex items-center justify-center mb-3 shadow-md">
+                                <span class="text-4xl text-gray-400">${callerName.substring(0,1).toUpperCase()}</span>
+                            </div>
+                            <p class="text-3xl font-medium tracking-tight">${callerName}</p>
+                            <p class="text-green-400 text-sm animate-pulse mt-1">Incoming Call...</p>
+                        </div>
+                        <div class="w-full pb-10 sm:pb-6">
+                            <div class="flex justify-around items-center">
+                                <button id="declineFakeCallButton" title="{{ __('Decline') }}" class="p-4 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg focus:outline-none transform transition hover:scale-110">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 3.293a1 1 0 00-1.414 0L10 8.586 4.707 3.293a1 1 0 00-1.414 1.414L8.586 10l-5.293 5.293a1 1 0 101.414 1.414L10 11.414l5.293 5.293a1 1 0 001.414-1.414L11.414 10l5.293-5.293a1 1 0 000-1.414z" /></svg>
+                                </button>
+                                <button id="answerFakeCallButton" title="{{ __('Answer') }}" class="p-4 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg focus:outline-none transform transition hover:scale-110">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>`;
+                showCallScreenModal(incomingCallHTML);
+
+                currentRingtone = new Audio("{{ asset('audio/ringtone.mp3') }}");
+                currentRingtone.loop = true;
+                currentRingtone.play().catch(e => console.error("Ringtone error:", e));
+
+                document.getElementById('declineFakeCallButton').addEventListener('click', () => resetFakeCallUI());
+                
+                document.getElementById('answerFakeCallButton').addEventListener('click', () => {
+                    if (currentRingtone) currentRingtone.pause();
+                    
+                    const ongoingCallHTML = `
+                        <div class="bg-black text-white p-6 w-full h-full flex flex-col justify-between items-center font-sans">
+                            <div class="flex-grow flex flex-col justify-center items-center text-center pt-10">
+                                <div class="w-24 h-24 bg-gray-700 rounded-full mx-auto flex items-center justify-center mb-3 shadow-md">
+                                    <span class="text-4xl text-gray-400">${callerName.substring(0,1).toUpperCase()}</span>
+                                </div>
+                                <p class="text-2xl font-semibold mb-1">${callerName}</p>
+                                <div id="fakeConversationTimer" class="text-gray-300 text-lg">00:00</div>
+                                <p id="conversationAudioStatus" class="text-gray-400 text-sm my-4 italic">{{ __('Starting conversation...') }}</p>
+                            </div>
+                            <div class="w-full pb-10 sm:pb-6"><div class="text-center">
+                                <button id="endOngoingCallButton" title="{{ __('End Call') }}" class="p-4 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg focus:outline-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 3.293a1 1 0 00-1.414 0L10 8.586 4.707 3.293a1 1 0 00-1.414 1.414L8.586 10l-5.293 5.293a1 1 0 101.414 1.414L10 11.414l5.293 5.293a1 1 0 001.414-1.414L11.414 10l5.293-5.293a1 1 0 000-1.414z" /></svg>
+                                </button>
+                            </div></div>
+                        </div>`;
+                    showCallScreenModal(ongoingCallHTML);
+                    
+                    document.getElementById('endOngoingCallButton').addEventListener('click', () => resetFakeCallUI());
+
+                    const conversationAudioStatusEl = document.getElementById('conversationAudioStatus');
+                    
+                    if (customAudioUrl) {
+                        if(conversationAudioStatusEl) conversationAudioStatusEl.innerText = '{{ __("Playing your recording...") }}';
+                        currentConversationAudio = new Audio(customAudioUrl);
+                        currentConversationAudio.play().catch(e => {
+                            if(conversationAudioStatusEl) conversationAudioStatusEl.innerText = '{{ __("Cannot play custom audio.") }}';
+                            setTimeout(() => resetFakeCallUI(), 2000);
+                        });
+                        currentConversationAudio.onended = () => resetFakeCallUI();
+                    } else {
+                        if(conversationAudioStatusEl) conversationAudioStatusEl.innerText = '{{ __("Processing AI voice, please wait...") }}';
+                        fetch("{{ route('fakecall.generateAudio') }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'), 'Accept': 'application/json' },
+                            body: JSON.stringify({ topic_value: selectedTopicValue, gender: selectedGender })
+                        })
+                        .then(res => {
+                            if (!res.ok) return res.json().then(err => { throw new Error(err.message || 'Server error') });
+                            return res.json();
+                        })
+                        .then(data => {
+                            if (data.success && data.audioUrl) {
+                                if(conversationAudioStatusEl) conversationAudioStatusEl.innerText = '{{ __("Playing conversation...") }}';
+                                currentConversationAudio = new Audio(data.audioUrl);
+                                currentConversationAudio.play().catch(e => {
+                                    if(conversationAudioStatusEl) conversationAudioStatusEl.innerText = '{{ __("Cannot play AI audio.") }}';
+                                    setTimeout(() => resetFakeCallUI(), 2000);
+                                });
+                                currentConversationAudio.onended = () => resetFakeCallUI();
+                            } else { throw new Error(data.message || 'Audio URL not received.'); }
+                        })
+                        .catch(error => {
+                            if(conversationAudioStatusEl) conversationAudioStatusEl.innerText = error.message;
+                            setTimeout(() => resetFakeCallUI(), 3000); 
+                        });
+                    }
+
+                    let callSeconds = 0;
+                    const timerEl = document.getElementById('fakeConversationTimer');
+                    conversationIntervalId = setInterval(() => {
+                        callSeconds++;
+                        const mins = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+                        const secs = String(callSeconds % 60).padStart(2, '0');
+                        if (timerEl) timerEl.innerText = `${mins}:${secs}`;
+                    }, 1000);
+                });
+            }, selectedTimerValue * 1000);
+        });
+    }
 });
 </script>
 @endpush
