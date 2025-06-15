@@ -49,4 +49,5 @@ document.addEventListener("DOMContentLoaded", function () {
             console.warn("Elemen header #mainWelcomeHeader tidak ditemukan.");
         }
     }
+    
 });
