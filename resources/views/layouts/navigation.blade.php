@@ -83,10 +83,6 @@
             <x-responsive-nav-link :href="route('fakecall.index')" :active="request()->routeIs('fakecall.index')">
                 {{ __('Fake Call') }}
             </x-responsive-nav-link>
-            {{-- === LINK SETTINGS BARU UNTUK MOBILE === --}}
-            <x-responsive-nav-link :href="route('settings.index')" :active="request()->routeIs('settings.index')">
-                {{ __('Settings') }}
-            </x-responsive-nav-link>
         </div>
 
         <div class="pt-4 pb-1 border-t border-primary-dark"> {{-- Sesuaikan border --}}
