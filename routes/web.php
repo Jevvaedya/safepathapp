@@ -48,7 +48,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/fake-call', [FakeCallController::class, 'index'])->name('fakecall.index');
     Route::post('/fake-call/generate-audio', [FakeCallController::class, 'generateAudio'])->name('fakecall.generateAudio');
     Route::post('/fake-call/upload-custom-audio', [FakeCallController::class, 'uploadCustomAudio'])->name('fakecall.uploadCustomAudio'); 
-    Route::delete('/fake-call/custom-audio/{id}', [FakeCallController::class, 'deleteCustomAudio'])->name('fakecall.deleteCustomAudio');
+    Route::delete('/fake-call/delete-custom-audio', [FakeCallController::class, 'deleteCustomAudio'])->name('fakecall.deleteCustomAudio');
+   
     // RUTE BARU UNTUK SETTINGS
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings/keyword', [SettingsController::class, 'updateKeyword'])->name('settings.updateKeyword');
