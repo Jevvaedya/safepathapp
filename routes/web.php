@@ -4,7 +4,6 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\EmergencyContactController;
 use App\Http\Controllers\SafeWalkController;
 use App\Http\Controllers\FakeCallController;
-use App\Http\Controllers\SettingsController; // Pastikan ini sudah ada atau ditambahkan
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -50,10 +49,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/fake-call/upload-custom-audio', [FakeCallController::class, 'uploadCustomAudio'])->name('fakecall.uploadCustomAudio'); 
     Route::delete('/fake-call/delete-custom-audio', [FakeCallController::class, 'deleteCustomAudio'])->name('fakecall.deleteCustomAudio');
    
-    // RUTE BARU UNTUK SETTINGS
-    Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
-    Route::post('/settings/keyword', [SettingsController::class, 'updateKeyword'])->name('settings.updateKeyword');
-     Route::post('/sos/notify-contact', [SettingsController::class, 'sendSosEmailNotification'])->name('sos.notifyContact');
 });
 
 
