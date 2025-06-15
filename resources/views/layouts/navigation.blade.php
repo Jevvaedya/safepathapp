@@ -21,10 +21,6 @@
                     <x-nav-link :href="route('fakecall.index')" :active="request()->routeIs('fakecall.index')">
                         {{ __('Fake Call') }}
                     </x-nav-link>
-                    {{-- === LINK SETTINGS BARU UNTUK DESKTOP === --}}
-                    <x-nav-link :href="route('settings.index')" :active="request()->routeIs('settings.index')">
-                        {{ __('Settings') }}
-                    </x-nav-link>
                 </div>
             </div>
 
