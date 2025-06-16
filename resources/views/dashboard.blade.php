@@ -79,12 +79,10 @@
         const stopSosButton = document.getElementById('stopSosButton');
         const soundErrorMessageP = document.getElementById('soundErrorMessage');
         
-        // BARU: Elemen untuk fitur suara
         const voiceListenButton = document.getElementById('voiceListenButton');
         const voiceStatus = document.getElementById('voiceStatus');
 
-        function playSound() {
-            // ... (Fungsi playSound Anda tidak perlu diubah)
+        function playSound() { /* ... kode tidak berubah ... */ 
             if (dashboardSosSoundElement) {
                 dashboardSosSoundElement.currentTime = 0;
                 const playPromise = dashboardSosSoundElement.play();
@@ -105,36 +103,27 @@
                 console.warn("Elemen audio 'dashboardSosAlertSound' tidak ditemukan.");
             }
         }
-
-        function stopSound() {
-            // ... (Fungsi stopSound Anda tidak perlu diubah)
+        function stopSound() { /* ... kode tidak berubah ... */ 
             if (dashboardSosSoundElement) {
                 dashboardSosSoundElement.pause();
                 dashboardSosSoundElement.currentTime = 0;
                 console.log("Audio SOS dihentikan.");
             }
         }
-
-        function triggerDashboardSOS() {
-            // BARU: Hentikan deteksi suara jika SOS terpicu
+        function triggerDashboardSOS() { /* ... kode tidak berubah ... */ 
             if (isListening) {
                 recognition.stop();
             }
-
             console.log("Dashboard SOS Terpicu!");
             playSound();
-
             if (dashboardSosMessageArea) {
                 if(soundErrorMessageP) soundErrorMessageP.classList.add('hidden');
                 dashboardSosMessageArea.classList.remove('hidden');
                 dashboardSosMessageArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
             if(sosButton) sosButton.disabled = true;
-            // BARU: Nonaktifkan juga tombol dengar suara
             if(voiceListenButton) voiceListenButton.disabled = true;
-
             if (navigator.geolocation) {
-                // ... (Sisa fungsi triggerDashboardSOS Anda tidak perlu diubah)
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         const locationData = { latitude: position.coords.latitude, longitude: position.coords.longitude };
@@ -152,27 +141,22 @@
                 updateDashboardEmailStatus("{{ __('Geolocation tidak didukung. Notifikasi email dikirim tanpa lokasi...') }}", "text-orange-600");
             }
         }
-
-        function stopDashboardSOS() {
+        function stopDashboardSOS() { /* ... kode tidak berubah ... */ 
             console.log("Dashboard SOS Dihentikan!");
             stopSound();
-
             if (dashboardSosMessageArea) {
                 dashboardSosMessageArea.classList.add('hidden');
             }
             if (sosButton) {
                 sosButton.disabled = false;
             }
-            // BARU: Aktifkan kembali tombol dengar suara
             if (voiceListenButton) {
                 voiceListenButton.disabled = false;
             }
             if(soundErrorMessageP) soundErrorMessageP.classList.add('hidden');
             updateDashboardEmailStatus("{{ __('If you have set up emergency contacts, we will attempt to notify them via email...') }}", "text-gray-500");
         }
-
-        function updateDashboardEmailStatus(message, cssClass) {
-            // ... (Fungsi updateDashboardEmailStatus Anda tidak perlu diubah)
+        function updateDashboardEmailStatus(message, cssClass) { /* ... kode tidak berubah ... */ 
             const emailStatusP = document.getElementById('dashboardEmailNotificationStatus');
             if (emailStatusP) {
                 emailStatusP.textContent = message;
@@ -180,7 +164,6 @@
                 if(cssClass) emailStatusP.classList.add(...cssClass.split(' '));
             }
         }
-
         if (sosButton) {
             sosButton.addEventListener('click', triggerDashboardSOS);
         }
@@ -188,7 +171,7 @@
             stopSosButton.addEventListener('click', stopDashboardSOS);
         }
 
-        // --- BARU: LOGIKA WEB SPEECH API ---
+        // --- LOGIKA WEB SPEECH API ---
         window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition;
         let isListening = false;
@@ -204,10 +187,24 @@
             recognition.continuous = true;
             recognition.interimResults = false;
 
+            // --- PERUBAHAN DIMULAI DI SINI ---
+
+            // 1. Daftar kata kunci darurat bawaan (default)
             const emergencyWords = ['tolong', 'bantu', 'darurat', 'sos'];
 
+            // 2. BARU: Ambil kata kunci dari controller yang di-render sebagai JSON oleh Blade
+            const userKeywords = @json($userKeywords ?? []);
+
+            // 3. BARU: Gabungkan kedua array menjadi satu daftar lengkap
+            const allEmergencyWords = [...emergencyWords, ...userKeywords];
+
+            // 4. BARU: Tambahkan console.log untuk memudahkan debugging
+            console.log('Daftar kata kunci yang aktif:', allEmergencyWords);
+
+            // --- AKHIR PERUBAHAN ---
+
+
             recognition.onresult = (event) => {
-                // Jangan lakukan apa-apa jika SOS sudah aktif
                 if (sosButton.disabled) return;
 
                 const lastResultIndex = event.results.length - 1;
@@ -216,10 +213,11 @@
                 console.log('Terdengar:', transcript);
                 voiceStatus.textContent = `Terdengar: "${transcript}"`;
 
-                for (const word of emergencyWords) {
+                // DIUBAH: Gunakan variabel 'allEmergencyWords' yang sudah digabung
+                for (const word of allEmergencyWords) {
                     if (transcript.includes(word)) {
                         voiceStatus.textContent = `Kata kunci "${word}" terdeteksi! Mengaktifkan SOS...`;
-                        triggerDashboardSOS(); // Panggil fungsi SOS yang sudah ada
+                        triggerDashboardSOS();
                         break;
                     }
                 }
@@ -238,14 +236,14 @@
                 isListening = true;
                 voiceListenButton.textContent = "Sedang Mendengar... (Klik untuk Berhenti)";
                 voiceListenButton.classList.add('bg-red-600', 'hover:bg-red-700');
-                voiceStatus.textContent = "Ucapkan 'Tolong', 'Bantu', 'Darurat', atau 'SOS'.";
+                // DIUBAH: Pesan menjadi lebih umum
+                voiceStatus.textContent = "Ucapkan salah satu kata kunci darurat Anda.";
             };
 
             recognition.onend = () => {
                 isListening = false;
                 voiceListenButton.textContent = "Aktivasi SOS via Suara";
                 voiceListenButton.classList.remove('bg-red-600', 'hover:bg-red-700');
-                // Hanya reset status jika SOS tidak aktif
                 if (!sosButton.disabled) {
                     voiceStatus.textContent = "Klik untuk mulai mendengarkan kata kunci darurat.";
                 }
@@ -256,7 +254,6 @@
                     if (isListening) {
                         recognition.stop();
                     } else {
-                        // Pastikan hanya mulai jika SOS tidak sedang aktif
                         if (!sosButton.disabled) {
                             try {
                                 recognition.start();

@@ -4,28 +4,19 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\EmergencyContactController;
 use App\Http\Controllers\SafeWalkController;
 use App\Http\Controllers\FakeCallController;
+use App\Http\Controllers\DashboardController; // PENTING: Tambahkan ini
+use App\Http\Controllers\UserKeywordController; // BARU: Tambahkan ini
+
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// PENTING: Route dashboard diubah untuk menggunakan Controller
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])->name('dashboard');
 
-// Route::get('/emergency-contacts', function () {
-    
-//     return view('dashboard', ['pageTitle' => 'Emergency Contacts']);
-// })->middleware(['auth', 'verified'])->name('emergency.contacts.index');
-
-// Route::get('/safe-walk', function () {
-//     return view('dashboard', ['pageTitle' => 'Safe Walk']);
-// })->middleware(['auth', 'verified'])->name('safewalk.index');
-
-// Route::get('/fake-call', function () {
-//     return view('dashboard', ['pageTitle' => 'Fake Call']);
-// })->middleware(['auth', 'verified'])->name('fakecall.index');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -48,7 +39,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/fake-call/generate-audio', [FakeCallController::class, 'generateAudio'])->name('fakecall.generateAudio');
     Route::post('/fake-call/upload-custom-audio', [FakeCallController::class, 'uploadCustomAudio'])->name('fakecall.uploadCustomAudio'); 
     Route::delete('/fake-call/delete-custom-audio', [FakeCallController::class, 'deleteCustomAudio'])->name('fakecall.deleteCustomAudio');
-   
+    
+    // BARU: RUTE UNTUK MANAJEMEN KEYWORD
+    Route::get('/settings/keywords', [UserKeywordController::class, 'index'])->name('keywords.index');
+    Route::post('/settings/keywords', [UserKeywordController::class, 'store'])->name('keywords.store');
+    Route::delete('/settings/keywords/{keyword}', [UserKeywordController::class, 'destroy'])->name('keywords.destroy');
 });
 
 
