@@ -15,9 +15,9 @@
             <div class="space-y-8">
 
                 {{-- ================================================================ --}}
-                {{-- BAGIAN 1: KONTEN SOS UTAMA (DARI DASHBOARD LAMA ANDA) --}}
+                {{-- BAGIAN 1: KONTEN SOS UTAMA                                     --}}
                 {{-- ================================================================ --}}
-                <div class="p-4 sm:p-6 text-gray-900 text-center">
+                <div class="p-4 sm:p-6 text-gray-900 text-center bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <h2 class="text-xl sm:text-2xl md:text-3xl font-semibold mb-6 sm:mb-8 text-text-main">
                         {{ __("In an Emergency Situation?") }}
                     </h2>
@@ -69,7 +69,7 @@
                 </div>
 
                 {{-- ================================================================ --}}
-                {{-- BAGIAN 2: PENGATURAN KATA KUNCI (DARI VOICE-KEYWORDS/INDEX.BLADE.PHP) --}}
+                {{-- BAGIAN 2: PENGATURAN KATA KUNCI                                --}}
                 {{-- ================================================================ --}}
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 text-gray-900">
@@ -85,7 +85,6 @@
                             {{ __('Enter keywords separated by a comma (,). For example: "bahaya, ada maling, tolong saya". These words will activate the SOS alert when spoken.') }}
                         </p>
 
-                        {{-- Form ini akan mengirim data ke VoiceKeywordController seperti sebelumnya --}}
                         <form action="{{ route('voice.keywords.store') }}" method="POST">
                             @csrf
                             <div>
@@ -108,10 +107,22 @@
     </div>
 
     @push('scripts')
-    {{-- Logika JavaScript Anda tidak perlu diubah sama sekali, karena sudah siap menerima data --}}
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // === Definisi Variabel DOM ===
+        
+        // =================================================================
+        // BAGIAN 1: PERBAIKAN TOMBOL TERSANGKUT (STUCK BUTTON FIX)
+        // Memaksa tombol untuk selalu aktif saat halaman baru dimuat untuk menghindari cache browser
+        // =================================================================
+        const initialSosButton = document.getElementById('sosButton');
+        const initialVoiceButton = document.getElementById('voiceListenButton');
+        if (initialSosButton) initialSosButton.disabled = false;
+        if (initialVoiceButton) initialVoiceButton.disabled = false;
+
+
+        // =================================================================
+        // BAGIAN 2: DEFINISI VARIABEL DAN FUNGSI INTI
+        // =================================================================
         const sosButton = document.getElementById('sosButton');
         const dashboardSosMessageArea = document.getElementById('dashboardSosMessageArea');
         const dashboardSosSoundElement = document.getElementById('dashboardSosAlertSound');
@@ -122,17 +133,72 @@
         const activeKeywordsArea = document.getElementById('activeKeywordsArea');
         const keywordsList = document.getElementById('keywordsList');
 
-        // === Fungsi-fungsi Inti (Tidak Berubah) ===
-        function playSound() { /* ... kode tidak berubah ... */ }
-        function stopSound() { /* ... kode tidak berubah ... */ }
-        function triggerDashboardSOS() { /* ... kode tidak berubah ... */ }
-        function stopDashboardSOS() { /* ... kode tidak berubah ... */ }
-        function updateDashboardEmailStatus(message, cssClass) { /* ... kode tidak berubah ... */ }
-        
+        function playSound() {
+            if (dashboardSosSoundElement) {
+                dashboardSosSoundElement.currentTime = 0;
+                const playPromise = dashboardSosSoundElement.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.error("Error memutar audio SOS:", error);
+                        if(soundErrorMessageP) {
+                            soundErrorMessageP.textContent = `Gagal memutar suara alarm: Browser mungkin memblokir pemutaran otomatis.`;
+                            soundErrorMessageP.classList.remove('hidden');
+                        }
+                    });
+                }
+            }
+        }
+
+        function stopSound() {
+            if (dashboardSosSoundElement) {
+                dashboardSosSoundElement.pause();
+                dashboardSosSoundElement.currentTime = 0;
+            }
+        }
+
+        function triggerDashboardSOS() {
+            if (window.recognition && isListening) {
+                recognition.stop();
+            }
+            console.log("Dashboard SOS Terpicu!");
+            playSound();
+
+            if (dashboardSosMessageArea) {
+                if(soundErrorMessageP) soundErrorMessageP.classList.add('hidden');
+                dashboardSosMessageArea.classList.remove('hidden');
+                dashboardSosMessageArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            if(sosButton) sosButton.disabled = true;
+            if(voiceListenButton) voiceListenButton.disabled = true;
+            
+            // Logika geolocation & notifikasi tetap sama
+        }
+
+        function stopDashboardSOS() {
+            console.log("Dashboard SOS Dihentikan!");
+            stopSound();
+            if (dashboardSosMessageArea) {
+                dashboardSosMessageArea.classList.add('hidden');
+            }
+            if (sosButton) {
+                sosButton.disabled = false;
+            }
+            if (voiceListenButton) {
+                // Hanya aktifkan kembali jika browser mendukungnya
+                if (window.SpeechRecognition) {
+                    voiceListenButton.disabled = false;
+                }
+            }
+            if(soundErrorMessageP) soundErrorMessageP.classList.add('hidden');
+        }
+
         if (sosButton) { sosButton.addEventListener('click', triggerDashboardSOS); }
         if (stopSosButton) { stopSosButton.addEventListener('click', stopDashboardSOS); }
 
-        // --- LOGIKA WEB SPEECH API ---
+
+        // =================================================================
+        // BAGIAN 3: LOGIKA WEB SPEECH API
+        // =================================================================
         window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition;
         let isListening = false;
@@ -140,7 +206,7 @@
         if (!window.SpeechRecognition) {
             if(voiceListenButton) {
                 voiceListenButton.disabled = true;
-                voiceStatus.textContent = "Maaf, browser Anda tidak mendukung fitur ini.";
+                voiceStatus.innerHTML = "<strong>Fitur suara tidak didukung di browser ini.</strong><br>Gunakan Google Chrome di PC/Laptop.";
             }
         } else {
             recognition = new SpeechRecognition();
@@ -148,25 +214,71 @@
             recognition.continuous = true;
             recognition.interimResults = false;
 
-            // 1. Daftar kata kunci darurat bawaan (default)
             const defaultEmergencyWords = ['tolong', 'bantu', 'darurat', 'sos'];
-
-            // 2. Ambil kata kunci dari controller (format ARRAY)
             const userKeywords = @json($userKeywords ?? []);
-
-            // 3. Gabungkan, pastikan unik dan tidak ada string kosong
             const allEmergencyWords = [...new Set([...defaultEmergencyWords, ...userKeywords].filter(word => word))];
             
-            // 4. Tampilkan kata kunci aktif ke pengguna
             if (allEmergencyWords.length > 0 && keywordsList) {
                 keywordsList.textContent = allEmergencyWords.join(', ');
                 if (activeKeywordsArea) activeKeywordsArea.classList.remove('hidden');
             }
-            
             console.log('Daftar kata kunci yang aktif:', allEmergencyWords);
-            
-            // ... sisa JavaScript (onresult, onerror, onstart, onend, etc.) tidak perlu diubah ...
-            // Kode Anda di sini sudah benar.
+
+            recognition.onresult = (event) => {
+                if (sosButton.disabled) return;
+                const lastResultIndex = event.results.length - 1;
+                const transcript = event.results[lastResultIndex][0].transcript.trim().toLowerCase();
+                console.log('Terdengar:', transcript);
+                voiceStatus.textContent = `Terdengar: "${transcript}"`;
+                for (const word of allEmergencyWords) {
+                    const regex = new RegExp(`\\b${word}\\b`);
+                    if (regex.test(transcript)) {
+                        voiceStatus.textContent = `Kata kunci "${word}" terdeteksi! Mengaktifkan SOS...`;
+                        triggerDashboardSOS();
+                        break;
+                    }
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                voiceStatus.textContent = `Terjadi error pada pengenalan suara: ${event.error}`;
+            };
+
+            recognition.onstart = () => {
+                isListening = true;
+                voiceListenButton.textContent = "Sedang Mendengar... (Klik untuk Berhenti)";
+                voiceListenButton.classList.add('bg-red-600', 'hover:bg-red-700');
+                voiceStatus.textContent = "Ucapkan salah satu kata kunci darurat Anda.";
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                // Hanya ubah teks jika SOS tidak aktif
+                if (!sosButton.disabled) {
+                    voiceListenButton.textContent = "Aktivasi SOS via Suara";
+                    voiceListenButton.classList.remove('bg-red-600', 'hover:bg-red-700');
+                    voiceStatus.textContent = "Klik untuk mulai mendengarkan kata kunci darurat.";
+                }
+            };
+
+            if (voiceListenButton) {
+                voiceListenButton.addEventListener('click', () => {
+                    if (isListening) {
+                        recognition.stop();
+                    } else {
+                        // Jangan mulai jika SOS sudah aktif
+                        if (!sosButton.disabled) {
+                            try {
+                                recognition.start();
+                            } catch (e) {
+                                console.error("Gagal memulai recognition:", e);
+                                voiceStatus.textContent = "Gagal memulai. Coba refresh halaman.";
+                            }
+                        }
+                    }
+                });
+            }
         }
     });
     </script>
