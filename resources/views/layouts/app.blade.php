@@ -17,11 +17,11 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased text-text-main bg-background-main">
-    <div class="min-h-screen bg-background-main">
+        <div class="min-h-screen bg-background-main">
             @include('layouts.navigation')
 
             @isset($header)
-                <header class="bg-gradient-to-r from-header-main to-header-second backdrop-blur-sm shadow-md"> {{-- Latar header ini mungkin juga perlu disesuaikan nanti jika ingin warna berbeda --}}
+                <header class="bg-gradient-to-r from-header-main to-header-second backdrop-blur-sm shadow-md">
                     <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                         {{ $header }}
                     </div>
@@ -31,13 +31,10 @@
             <main>
                 {{ $slot }}
             </main>
-        </div>
-            </div> {{-- Penutup <div class="min-h-screen ..."> --}}
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-            crossorigin=""></script>
-            
+        </div> <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+                integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+                crossorigin=""></script>
+                
         @stack('scripts')
     </body>
 </html>
