@@ -68,20 +68,21 @@
 
         <div x-show="open"
              x-transition:enter="transition ease-in-out duration-300 transform"
-             x-transition:enter-start="-translate-x-full"
+             x-transition:enter-start="translate-x-full"  {{-- Diubah: Mulai dari kanan luar layar --}}
              x-transition:enter-end="translate-x-0"
              x-transition:leave="transition ease-in-out duration-300 transform"
              x-transition:leave-start="translate-x-0"
-             x-transition:leave-end="-translate-x-full"
-             class="fixed top-0 left-0 h-full w-4/5 max-w-xs z-50 bg-black shadow-lg flex flex-col"
+             x-transition:leave-end="translate-x-full"    {{-- Diubah: Hilang ke arah kanan luar layar --}}
+             class="fixed top-0 right-0 h-full w-4/5 max-w-xs z-50 bg-black shadow-lg flex flex-col" {{-- Diubah: dari left-0 menjadi right-0 --}}
         >
             <div class="flex items-center justify-between p-4 border-b border-gray-800">
-                <a href="{{ route('dashboard') }}" class="shrink-0">
-                    <img src="{{ asset('images/safepath-logo.png') }}" alt="SafePath Logo" class="block h-8 w-auto" />
-                </a>
+                {{-- Posisi Tombol Close dan Logo ditukar agar lebih intuitif --}}
                 <button @click="open = false" class="p-2 text-gray-400 hover:text-white">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
+                <a href="{{ route('dashboard') }}" class="shrink-0">
+                    <img src="{{ asset('images/safepath-logo.png') }}" alt="SafePath Logo" class="block h-8 w-auto" />
+                </a>
             </div>
 
             <div class="flex-grow overflow-y-auto">
