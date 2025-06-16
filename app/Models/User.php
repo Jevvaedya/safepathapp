@@ -9,6 +9,8 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\EmergencyContact;
 use App\Models\SafeWalkSession;
+use App\Models\UserCustomAudio;
+use App\Models\VoiceKeyword; // <--- TAMBAHKAN INI
 
 class User extends Authenticatable
 {
@@ -24,7 +26,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'voice_sos_keyword',
+        'voice_sos_keyword', // Catatan: Kolom ini mungkin tidak diperlukan lagi jika kita pakai tabel relasi
         'custom_fake_call_audio_path',
     ];
 
@@ -63,12 +65,17 @@ class User extends Authenticatable
     {
         return $this->hasMany(SafeWalkSession::class);
     }
-    // app/Models/User.php
-// ...
-public function customAudios()
-{
-    return $this->hasMany(UserCustomAudio::class);
-}
-// ...
-}
+    
+    public function customAudios(): HasMany
+    {
+        return $this->hasMany(UserCustomAudio::class);
+    }
 
+    /**
+     * Get the custom voice keywords for the user.  <--- TAMBAHKAN METHOD INI
+     */
+    public function voiceKeywords(): HasMany
+    {
+        return $this->hasMany(VoiceKeyword::class);
+    }
+}
