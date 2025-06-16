@@ -31,7 +31,7 @@
 
                     <div x-data="{ isVoiceActive: false }" class="mt-8 flex flex-col items-center">
                         <div class="flex items-center space-x-3">
-                            <span class="text-gray-600 dark:text-gray-300 font-medium">Aktivasi via Suara</span>
+                            <span class="text-gray-600 dark:text-gray-300 font-medium">Activate via Voice</span>
                             <button @click="isVoiceActive = !isVoiceActive; window.toggleVoiceRecognition(isVoiceActive)"
                                     type="button"
                                     class="relative inline-flex flex-shrink-0 h-7 w-12 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -46,7 +46,7 @@
                         </div>
                         <p id="voiceStatus" class="text-sm text-gray-500 dark:text-gray-400 mt-2 min-h-[20px]"></p>
                         <div id="activeKeywordsArea" class="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden">
-                            <span class="font-semibold">Kata Kunci Aktif:</span>
+                            <span class="font-semibold">Active Keywords:</span>
                             <span id="keywordsList"></span>
                         </div>
                     </div>

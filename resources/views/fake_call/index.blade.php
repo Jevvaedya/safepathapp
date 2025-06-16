@@ -64,7 +64,7 @@
                         <p class="text-sm text-gray-500 mb-1 mt-4">{{ __('Or, upload a new one:') }}</p>
                         <form id="uploadCustomAudioForm" enctype="multipart/form-data">
                             <div class="mb-3">
-                                <label for="customAudioFile" class="block text-sm font-semibold text-text-main">{{ __('Choose audio file (MP3, WAV, AAC, OGG - Max 5MB):') }}</label>
+                                <label for="customAudioFile" class="block text-sm font-semibold text-text-main">{{ __('Choose audio file (MP3, WAV, AAC, OGG - Max 1MB):') }}</label>
                                 <input type="file" name="audio_file" id="customAudioFile" accept=".mp3,.wav,.aac,.ogg"
                                        class="mt-1 block w-full px-3 py-2 text-base border border-gray-300 focus:border-primary focus:ring-1 focus:ring-primary rounded-md shadow-sm text-sm text-gray-500 cursor-pointer
                                               file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold
